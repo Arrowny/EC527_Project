@@ -8,7 +8,7 @@
 *	
 *	Compile with: 
 *
-*	nvcc -o sparseAutoencoder sparseAutoencoder.cu
+*	nvcc -Xcompiler -fopenmp -lgomp -o sparseAutoencoder sparseAutoencoder.cu
 *
 *******************************************************************/
 
