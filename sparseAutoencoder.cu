@@ -7,7 +7,7 @@
 *	Serial Implementation With Timing Code
 *	
 *	Compile with: 
-*
+*   nvcc -ccbin /usr/bin/clang -Xcompiler -fopenmp -lrt -lgomp -o sparseAutoencoder sparseAutoencoder.cu 
 *	nvcc -Xcompiler -fopenmp -lgomp -o sparseAutoencoder sparseAutoencoder.cu
 *
 *******************************************************************/
@@ -228,7 +228,7 @@ int main(int argc, char *argv[]){
 	****************************************/
 
     printf("\nTesting Baseline Sparse Autoencoder");
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    //(CLOCK_PROCESS_CPUTIME_ID, &time1);
     int OPTION = 0;//default is zero. Placeholder in case.
 
 	/***************************************
@@ -501,8 +501,8 @@ int main(int argc, char *argv[]){
 	     END AND PRINT SERIAL TIMING
 	****************************************/
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
-    time_stamp[OPTION] = diff(time1,time2);
+    //clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+    //time_stamp[OPTION] = diff(time1,time2);
 
 	printTiming(time_stamp,OPTIONS);
 
