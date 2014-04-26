@@ -8,7 +8,7 @@
 *	
 *	Compile with: 
 *
-*	nvcc -o sparseAutoencoder sparseAutoencoder.cu
+*	nvcc -Xcompiler -fopenmp -lgomp -o sparseAutoencoder sparseAutoencoder.cu
 *
 *******************************************************************/
 
@@ -391,6 +391,8 @@ int main(int argc, char *argv[]){
 	    vectElemFloatMult(h_temp1,h_temp1,HIDDEN_SIZE,BETA);//beta .* (-(sparsityParam./rhoHat) + (1-sparsityParam)./(1-rhoHat))) --> h_temp1
 
 	    matrixTranspose(h_W2,h_Wtemp1,VISIBLE_SIZE,HIDDEN_SIZE);//W2' --> h_Wtemp1
+
+		//Parallelize with OpenMP
 	    for(int j = 0;j < VISIBLE_SIZE;j++){//(W2' * d3) --> h_temp2
 	    	dotPdt(h_d3,&h_Wtemp1[j*HIDDEN_SIZE],&h_temp2[j],VISIBLE_SIZE);
 	    }
@@ -411,10 +413,24 @@ int main(int argc, char *argv[]){
 	    b1grad = b1grad + d2; 
 	    */
 
-	    mmm_ijk(h_d3,h_a2,h_Wtemp1,VISIBLE_SIZE,1,1,HIDDEN_SIZE);//d3 * a2' --> h_Wtemp1
+		/*
+		int ii, jj;
+		for(ii = 0; i < HIDDEN_SIZE; ii++) {
+			for(jj = 0; jj < VISIBLE_SIZE; jj++) {
+				h_Wtemp1[ii*HIDDEN_SIZE+jj]= h_d3[jj]*h_a2[ii];
+			}
+		}*/
+	    mmm_kij(h_d3,h_a2,h_Wtemp1,VISIBLE_SIZE,1,1,HIDDEN_SIZE);//d3 * a2' --> h_Wtemp1
 	    addVectors(h_W2grad,h_Wtemp1,h_W2grad,HIDDEN_SIZE*VISIBLE_SIZE);//W2grad + d3 * a2'; --> h_W2grad
 	    addVectors(h_b2grad,h_d3,h_b2grad,VISIBLE_SIZE);//b2grad = b2grad + d3;
-	    mmm_ijk(h_d2,&h_inputs[i],h_Wtemp1,HIDDEN_SIZE,1,1,VISIBLE_SIZE);//d2 * xM' --> h_Wtemp1
+
+		/*
+		for(ii = 0; ii < HIDDEN_SIZE; ii++) {
+			for(jj = 0; jj < VISIBLE_SIZE; jj++) {
+				h_Wtemp1[ii*HIDDEN_SIZE+jj]= h_d2[jj]*h_inputs[i+ii];
+			}
+		}*/
+	    mmm_kij(h_d2,&h_inputs[i],h_Wtemp1,HIDDEN_SIZE,1,1,VISIBLE_SIZE);//d2 * xM' --> h_Wtemp1
 	    addVectors(h_W1grad,h_Wtemp1,h_W1grad,HIDDEN_SIZE*VISIBLE_SIZE);//W1grad = W1grad + d2 * xM'; --> h_W1grad
 	    addVectors(h_b1grad,h_d2,h_b1grad,HIDDEN_SIZE);//b1grad = b1grad + d2; --> h_b1grad
  
@@ -493,7 +509,7 @@ int main(int argc, char *argv[]){
     /***************************************
 			   DEBUG OUTPUTS
 	****************************************/
-
+	
     cout << "z2" << endl;//DEBUG
 	printVector(h_z2,HIDDEN_SIZE);//DEBUG
 	cout << "a2" << endl;//DEBUG
@@ -518,7 +534,7 @@ int main(int argc, char *argv[]){
 	cout<< "Z3_kij" << endl;//DEBUG
 	printVector(h_z3, VISIBLE_SIZE);//DEBUG
 
-	mmm_ijk(h_W2,h_a2,h_z3,VISIBLE_SIZE,HIDDEN_SIZE,HIDDEN_SIZE,1);//DEBUG
+	mmm_kij(h_W2,h_a2,h_z3,VISIBLE_SIZE,HIDDEN_SIZE,HIDDEN_SIZE,1);//DEBUG
 	cout << "Z3_ijk" << endl;//DEBUG
 	printVector(h_z3,VISIBLE_SIZE);//DEBUG
 
@@ -752,33 +768,18 @@ void initializeVectorWeightsZero(float *arr, int numElements){
 	}
 }
 
-/* mmm kij */ //BROKEN CURRENTLY
-void mmm_kij(float* src1, float* src2, float* dest, int row1, int col1, int row2,int col2){
 
-    float r = 0;
-
-    for (int k = 0; k < row2; k++){
-        for (int i = 0; i < row1; i++) {
-            r = src1[i*col1+k];
-            for (int j = 0; j < col2; j++){
-                dest[i*row1+j] += r*src2[k*row2+j];
-            }
-        }
-    }
-}
-
-void mmm_ijk(float* src1, float* src2, float* dest, int row1, int col1, int row2, int col2){
-	for(int i = 0;i < row1;i++){
-		for(int j = 0;j < col1;j++){//or row2
-			for(int k = 0;k < col2;k++){
-				dest[i*col2+k] += src1[i*col1+j] * src2[j*col2+k]; 
+void mmm_kij(float* src1, float* src2, float* dest, int row1, int col1, int row2, int col2){
+	for(int k = 0; k < row1; k++){
+		for(int i = 0; i < col1; i++){//or row2
+			for(int j = 0; j < col2; j++){
+				dest[k*col2+j] += src1[j*col1+i] * src2[i*col2+j]; 
 				//cout << "src1: " << src1[i*col1+j] << " src2: " << src2[j*col2+k] << endl;//DEBUG
 				//cout << "I: " << i << " J: " << j << " K: " << k << endl;//DEBUG
 			}
 		}
 	}
 }
-
 
 //http://www.cplusplus.com/forum/general/13087/
 //http://www.cplusplus.com/forum/general/17771/
